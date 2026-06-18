@@ -1,0 +1,33 @@
+# GGUF model files (can be very large, 10GB+)
+*.gguf
+
+# Cache directories
+.cache/
+
+# Docker
+.docker/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment / config files with secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Temp / build artifacts
+tmp/
+temp/
+*.tmp
