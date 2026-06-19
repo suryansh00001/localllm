@@ -24,6 +24,8 @@ exec llama-cli \
     --cache-type-v turbo3 \
     --n-gpu-layers 999 \
     --n-cpu-moe 41 \
-    --reasoning off \
+    --reasoning on \
+    --reasoning-format deepseek \
+    --reasoning-budget -1 \
     --parallel 1;
 

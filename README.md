@@ -45,26 +45,48 @@ chmod +x download_qwen3.sh
 
 ---
 
-### `run_qwen3.sh` — Full stack (llama-server + Open WebUI)
+### `run_llama_server.sh` — llama.cpp server only
 
-Starts **both** the llama.cpp server and the Open WebUI web dashboard in one command. This is the recommended way for most users who want a browser-based interface.
+Starts the llama.cpp server serving the model via an OpenAI-compatible API on port 8080.
 
 ```bash
-chmod +x run_qwen3.sh
-./run_qwen3.sh
+chmod +x run_llama_server.sh
+./run_llama_server.sh
 ```
 
 **What it does:**
 1. Checks if the model file exists; downloads it if missing
-2. Starts the Open WebUI Docker container (`docker compose up -d`)
-3. Launches `llama-server` serving the model on port 8080
-4. Opens the WebUI at `http://localhost:3000` in your browser automatically
-5. On exit (Ctrl+C), gracefully shuts down the Docker container
+2. Launches `llama-server` serving the model on port 8080 with reasoning/thinking enabled
+3. Exposes the OpenAI-compatible API at `http://localhost:8080/v1`
+
+**Useful flags:**
+- `--reasoning on` — enables Chain-of-Thought / thinking mode
+- `--reasoning-format deepseek` — returns thoughts in `message.reasoning_content` for clean separation
+- `--reasoning-budget -1` — unlimited thinking tokens (use a positive number to limit)
 
 **Architecture:**
 ```
-Browser → Open WebUI (localhost:3000, Docker) → llama-server (localhost:8080) → Qwen3.6 Model
+llama-server (localhost:8080) → Qwen3.6 Model
 ```
+
+---
+
+### `run_openwebui.sh` — Open WebUI only
+
+Starts the Open WebUI Docker container. Requires `llama-server` to be running on port 8080 first.
+
+```bash
+chmod +x run_openwebui.sh
+./run_openwebui.sh
+# Then open http://localhost:3000 in your browser
+```
+
+**What it does:**
+1. Starts the Open WebUI Docker container in detached mode
+2. Configures it to connect to llama-server on `http://host.docker.internal:8080`
+3. Opens the WebUI at `http://localhost:3000`
+
+**Note:** Start this after `run_llama_server.sh` so the API endpoint is available.
 
 ---
 
@@ -79,7 +101,7 @@ chmod +x cli_qwen3.sh
 
 **What it does:**
 1. Checks if the model file exists; downloads it if missing
-2. Launches `llama-cli` with an interactive chat prompt
+2. Launches `llama-cli` with an interactive chat prompt and thinking enabled
 
 **When to use:** Headless servers, SSH sessions, or when you prefer a terminal interface.
 
@@ -95,7 +117,9 @@ All three scripts pass these flags to the model. Here's what each one means:
 | `--cache-type-v turbo3` | `turbo3` | Uses 3-bit TurboQuant for the V (value) KV cache. Complements the K cache quantization for even more memory savings |
 | `--n-gpu-layers 999` | `999` | Push as many model layers as possible into GPU VRAM. `999` means "all of them" — llama.cpp will use whatever fits |
 | `--n-cpu-moe 41` | `41` | Keeps the MoE expert weights of the first 41 layers in CPU memory. This is critical for MoE models — it offloads the large expert routing weights from VRAM to RAM, freeing up GPU memory for the KV cache |
-| `--reasoning off` | `off` | Disables CoT/reasoning trace output. Removes the thinking/reasoning tags from responses for cleaner, faster outputs |
+| `--reasoning on` | `on` | Enables Chain-of-Thought / thinking mode. The model will produce a reasoning trace before answering |
+| `--reasoning-format deepseek` | `deepseek` | Returns reasoning thoughts in `message.reasoning_content` for clean separation from the final answer |
+| `--reasoning-budget -1` | `-1` | Unlimited thinking tokens — let the model think as long as it needs |
 | `--parallel 1` | `1` | Single request slot. You send one prompt and get one response. Prevents context collision in the WebUI |
 
 ### Key optimization takeaways:
@@ -107,7 +131,7 @@ All three scripts pass these flags to the model. Here's what each one means:
 
 ## 🌐 Open WebUI (Docker Dashboard)
 
-`run_qwen3.sh` uses the [Open WebUI](https://github.com/open-webui/open-webui) project to provide a chat interface that looks like ChatGPT.
+Open WebUI is used to provide a chat interface that looks like ChatGPT.
 
 ### It's Persistent
 
@@ -192,8 +216,9 @@ With `llama-server` running on port 8080, pi can be used as your local coding as
 ### Option 1: Web UI (recommended for beginners)
 
 ```bash
-./run_qwen3.sh
-# Wait for download + startup, then browse to http://localhost:3000
+./run_llama_server.sh   # Start the API server in one terminal
+./run_openwebui.sh      # Start Open WebUI in another terminal
+# Then open http://localhost:3000 in your browser
 ```
 
 ### Option 2: Terminal only
@@ -207,8 +232,9 @@ With `llama-server` running on port 8080, pi can be used as your local coding as
 ```bash
 ./download_qwen3.sh
 # Later:
-./cli_qwen3.sh        # or
-./run_qwen3.sh        # (it'll skip the download since the model already exists)
+./run_llama_server.sh   # or
+./cli_qwen3.sh          # or
+./run_openwebui.sh      # (it'll skip the download since the model already exists)
 ```
 
 ---
@@ -219,7 +245,8 @@ With `llama-server` running on port 8080, pi can be used as your local coding as
 .
 ├── download_qwen3.sh   # Download model only
 ├── cli_qwen3.sh        # Terminal-only inference
-├── run_qwen3.sh        # Full stack (WebUI + server)
+├── run_llama_server.sh # llama.cpp server (API on port 8080)
+├── run_openwebui.sh    # Open WebUI Docker container
 ├── docker-compose.yml  # Open WebUI Docker config
 ├── opencode.json       # OpenCode AI config (see warnings above)
 ├── pi.json             # pi coding agent config (recommended)
@@ -247,7 +274,8 @@ Model file (`*.gguf`) is excluded from git as it's ~5GB and pulled from Hugging 
 - **Model not downloading?** Make sure `hf` is logged in (`hf auth login`) if the repo requires authentication
 - **Out of GPU memory?** Try lowering `--n-gpu-layers` (e.g., `32`) to force some layers to CPU
 - **Slow inference?** Make sure your GPU is detected. Check `llama-server` logs for GPU info
-- **WebUI won't connect?** Make sure `llama-server` is running first — it needs to be listening on port 8080 before Open WebUI can connect. With `run_qwen3.sh`, both start simultaneously but give it a moment
+- **WebUI won't connect?** Make sure `llama-server` is running first — it needs to be listening on port 8080 before Open WebUI can connect. Start `run_llama_server.sh` in one terminal, then `run_openwebui.sh` in another.
+- **No thinking / reasoning output?** Verify `--reasoning on` is set in your server script. Open WebUI and pi will receive the reasoning content in the `message.reasoning_content` field.
 - **pi not connecting?** Verify `llama-server` is running and `pi.json` points to the correct URL
 
 ---
@@ -256,5 +284,4 @@ Model file (`*.gguf`) is excluded from git as it's ~5GB and pulled from Hugging 
 
 - The model downloads ~5GB on first run. Subsequent runs are instant.
 - Open WebUI is on the `main` branch — it's the development build and may have occasional bugs.
-- All three scripts auto-create the model directory if needed.
-- The `cleanup` trap in `run_qwen3.sh` ensures the Docker container is stopped on exit (Ctrl+C).
+- All scripts with model checks auto-create the model directory if needed.

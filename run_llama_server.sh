@@ -9,7 +9,6 @@ MODEL_FILE="Qwen_Qwen3.6-35B-A3B-${QUANT}.gguf"
 MODEL_PATH="${MODEL_DIR}/${MODEL_FILE}"
 PORT=8080
 HOST="0.0.0.0"
-URL="http://localhost:3000"
 
 mkdir -p "${MODEL_DIR}"
 
@@ -21,25 +20,10 @@ else
     echo "Model already exists at ${MODEL_PATH}, skipping download."
 fi
 
-echo "Starting Open WebUI..."
-docker compose -f "${SCRIPT_DIR}/docker-compose.yml" up -d
+echo "Starting llama-server on ${HOST}:${PORT}..."
+echo "API endpoint: http://localhost:${PORT}/v1"
 
-cleanup() {
-    echo "Stopping Open WebUI..."
-    docker compose -f "${SCRIPT_DIR}/docker-compose.yml" down
-}
-trap cleanup EXIT
-
-echo "Starting llama-server..."
-echo "UI available at: ${URL}"
-
-if command -v xdg-open &>/dev/null; then
-    xdg-open "${URL}" 2>/dev/null || true
-elif command -v open &>/dev/null; then
-    open "${URL}" 2>/dev/null || true
-fi
-
-exec llama-server \
+llama-server \
     --model "${MODEL_PATH}" \
     --port "${PORT}" \
     --host "${HOST}" \
@@ -47,5 +31,7 @@ exec llama-server \
     --cache-type-v turbo3 \
     --n-gpu-layers 999 \
     --n-cpu-moe 41 \
-    --reasoning off\
+    --reasoning on \
+    --reasoning-format deepseek \
+    --reasoning-budget -1 \
     --parallel 1;
