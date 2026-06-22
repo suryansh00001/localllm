@@ -28,7 +28,7 @@ llama-server \
     --port "${PORT}" \
     --host "${HOST}" \
     --ctx-size 262144 \
-    --cache-type-k turbo4 \
+    --cache-type-k turbo3 \
     --cache-type-v turbo3 \
     --n-gpu-layers 999 \
     --n-cpu-moe 41 \

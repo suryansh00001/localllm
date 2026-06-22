@@ -18,16 +18,16 @@ else
     echo "Model already exists at ${MODEL_PATH}, skipping download."
 fi
 
-exec llama-cli \
+echo "Running llama-bench (sweeping --n-cpu-moe and prompt sizes)..."
+
+llama-bench \
     -m "${MODEL_PATH}" \
-    --ctx-size 262144 \
     --cache-type-k turbo3 \
     --cache-type-v turbo3 \
     --n-gpu-layers 999 \
     --n-cpu-moe 41 \
-    --reasoning on \
-    --reasoning-format deepseek \
-    --reasoning-budget -1 \
-    --parallel 1 \
-	--flash-attn on;
-
+    --flash-attn on \
+    -p 0 \
+    -d 512,2048,8192,32768,131072,262144 \
+    -n 128 \
+    --progress;
